@@ -1,27 +1,36 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Nop.Core;
+using Nop.Core.Data;
 using Nop.Core.Domain.Orders;
 using Nop.Core.Plugins;
 using Nop.Services.Configuration;
 using Nop.Services.Discounts;
 using Nop.Services.Localization;
-using Nop.Services.Orders;
 
 namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
 {
     public partial class PurchasedOneProductDiscountRequirementRule : BasePlugin, IDiscountRequirementRule
     {
-        private readonly IOrderService _orderService;
-        private readonly ISettingService _settingService;
+        #region Fields
 
-        public PurchasedOneProductDiscountRequirementRule(IOrderService orderService,
-            ISettingService settingService)
+        private readonly ISettingService _settingService;
+        private readonly IRepository<OrderItem> _orderItemRepository;
+
+        #endregion
+
+        #region Ctor
+
+        public PurchasedOneProductDiscountRequirementRule(ISettingService settingService,
+            IRepository<OrderItem> orderItemRepository)
         {
-            this._orderService = orderService;
             this._settingService = settingService;
+            this._orderItemRepository = orderItemRepository;
         }
+
+        #endregion
+
+        #region Methods
 
         /// <summary>
         /// Check discount requirement
@@ -45,6 +54,7 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
                 return result;
 
             var restrictedProductIds = new List<int>();
+
             try
             {
                 restrictedProductIds = restrictedProductVariantIdsStr
@@ -57,23 +67,22 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
                 //error parsing
                 return result;
             }
+
             if (restrictedProductIds.Count == 0)
                 return result;
 
-            //purchased products
-            var purchasedProducts = _orderService.GetAllOrderItems(0,
-                request.Customer.Id, null, null, OrderStatus.Complete, null, null);
+            var customerId = request.Customer.Id;
+            var orderStatusId = (int)OrderStatus.Complete;
+            //purchased product
+            var purchasedProducts = _orderItemRepository.Table.Where(oi => oi.Order.CustomerId == customerId && !oi.Order.Deleted && oi.Order.OrderStatusId == orderStatusId).ToList();
 
             bool found = false;
+
             foreach (var restrictedProductId in restrictedProductIds)
             {
-                foreach (var purchasedProduct in purchasedProducts)
+                if (purchasedProducts.Any(purchasedProduct => restrictedProductId == purchasedProduct.ProductId))
                 {
-                    if (restrictedProductId == purchasedProduct.ProductId)
-                    {
-                        found = true;
-                        break;
-                    }
+                    found = true;
                 }
 
                 if (found)
@@ -106,6 +115,9 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
             return result;
         }
 
+        /// <summary>
+        /// Install plugin
+        /// </summary>
         public override void Install()
         {
             //locales
@@ -114,6 +126,9 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
             base.Install();
         }
 
+        /// <summary>
+        /// Uninstall plugin
+        /// </summary>
         public override void Uninstall()
         {
             //locales
@@ -121,5 +136,7 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
             this.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.ProductVariants.Hint");
             base.Uninstall();
         }
+
+        #endregion
     }
 }
