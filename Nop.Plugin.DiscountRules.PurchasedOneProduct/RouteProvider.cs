@@ -15,6 +15,21 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
                  new { controller = "DiscountRulesPurchasedOneProduct", action = "Configure" },
                  new[] { "Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers" }
             );
+            routes.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.ProductAddPopup",
+                 "Plugins/DiscountRulesPurchasedOneProduct/ProductAddPopup",
+                 new { controller = "DiscountRulesPurchasedOneProduct", action = "ProductAddPopup" },
+                 new[] { "Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers" }
+            );
+            routes.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.ProductAddPopupList",
+                 "Plugins/DiscountRulesPurchasedOneProduct/ProductAddPopupList",
+                 new { controller = "DiscountRulesPurchasedOneProduct", action = "ProductAddPopupList" },
+                 new[] { "Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers" }
+            );
+            routes.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.LoadProductFriendlyNames",
+                 "Plugins/DiscountRulesPurchasedOneProduct/LoadProductFriendlyNames",
+                 new { controller = "DiscountRulesPurchasedOneProduct", action = "LoadProductFriendlyNames" },
+                 new[] { "Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers" }
+            );
         }
 
         #endregion
