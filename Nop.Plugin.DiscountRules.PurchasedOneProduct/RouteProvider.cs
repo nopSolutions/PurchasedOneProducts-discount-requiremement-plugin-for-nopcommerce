@@ -1,6 +1,6 @@
-﻿using System.Web.Mvc;
-using System.Web.Routing;
-using Nop.Web.Framework.Mvc.Routes;
+﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Routing;
+using Nop.Web.Framework.Mvc.Routing;
 
 namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
 {
@@ -8,28 +8,23 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
     {
         #region Methods
 
-        public void RegisterRoutes(RouteCollection routes)
+        public void RegisterRoutes(IRouteBuilder routeBuilder)
         {
-            routes.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.Configure",
+            routeBuilder.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.Configure",
                  "Plugins/DiscountRulesPurchasedOneProduct/Configure",
-                 new { controller = "DiscountRulesPurchasedOneProduct", action = "Configure" },
-                 new[] { "Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers" }
-            );
-            routes.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.ProductAddPopup",
+                 new { controller = "DiscountRulesPurchasedOneProduct", action = "Configure" });
+
+            routeBuilder.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.ProductAddPopup",
                  "Plugins/DiscountRulesPurchasedOneProduct/ProductAddPopup",
-                 new { controller = "DiscountRulesPurchasedOneProduct", action = "ProductAddPopup" },
-                 new[] { "Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers" }
-            );
-            routes.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.ProductAddPopupList",
+                 new { controller = "DiscountRulesPurchasedOneProduct", action = "ProductAddPopup" });
+
+            routeBuilder.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.ProductAddPopupList",
                  "Plugins/DiscountRulesPurchasedOneProduct/ProductAddPopupList",
-                 new { controller = "DiscountRulesPurchasedOneProduct", action = "ProductAddPopupList" },
-                 new[] { "Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers" }
-            );
-            routes.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.LoadProductFriendlyNames",
+                 new { controller = "DiscountRulesPurchasedOneProduct", action = "ProductAddPopupList" });
+
+            routeBuilder.MapRoute("Plugin.DiscountRules.PurchasedOneProduct.LoadProductFriendlyNames",
                  "Plugins/DiscountRulesPurchasedOneProduct/LoadProductFriendlyNames",
-                 new { controller = "DiscountRulesPurchasedOneProduct", action = "LoadProductFriendlyNames" },
-                 new[] { "Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers" }
-            );
+                 new { controller = "DiscountRulesPurchasedOneProduct", action = "LoadProductFriendlyNames" });
         }
 
         #endregion

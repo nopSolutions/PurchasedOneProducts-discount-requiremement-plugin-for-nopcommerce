@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Web.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Nop.Core;
 using Nop.Core.Domain.Catalog;
 using Nop.Core.Domain.Discounts;
@@ -14,13 +14,16 @@ using Nop.Services.Localization;
 using Nop.Services.Security;
 using Nop.Services.Stores;
 using Nop.Services.Vendors;
+using Nop.Web.Framework;
 using Nop.Web.Framework.Controllers;
 using Nop.Web.Framework.Kendoui;
-using Nop.Web.Framework.Security;
+using Nop.Web.Framework.Mvc.Filters;
+using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
 {
-    [AdminAuthorize]
+    [AuthorizeAdmin]
+    [Area(AreaNames.Admin)]
     public class DiscountRulesPurchasedOneProductController : BasePluginController
     {
         #region Fields
@@ -67,7 +70,7 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
 
         #region Methods
 
-        public ActionResult Configure(int discountId, int? discountRequirementId)
+        public IActionResult Configure(int discountId, int? discountRequirementId)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageDiscounts))
                 return Content("Access denied");
@@ -85,24 +88,24 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
                     return Content("Failed to load requirement.");
             }
 
-            var restrictedProductVariantIds = _settingService.GetSettingByKey<string>(string.Format("DiscountRequirement.RestrictedProductVariantIds-{0}", discountRequirementId.HasValue ? discountRequirementId.Value : 0));
+            var restrictedProductVariantIds = _settingService.GetSettingByKey<string>($"DiscountRequirement.RestrictedProductVariantIds-{discountRequirementId ?? 0}");
 
             var model = new RequirementModel
             {
-                RequirementId = discountRequirementId.HasValue ? discountRequirementId.Value : 0,
+                RequirementId = discountRequirementId ?? 0,
                 DiscountId = discountId,
                 Products = restrictedProductVariantIds
             };
 
             //add a prefix
-            ViewData.TemplateInfo.HtmlFieldPrefix = string.Format("DiscountRulesPurchasedOneProduct{0}", discountRequirementId.HasValue ? discountRequirementId.Value.ToString() : "0");
+            ViewData.TemplateInfo.HtmlFieldPrefix = $"DiscountRulesPurchasedOneProduct{discountRequirementId?.ToString() ?? "0"}";
 
             return View("~/Plugins/DiscountRules.PurchasedOneProduct/Views/Configure.cshtml", model);
         }
 
         [HttpPost]
         [AdminAntiForgery]
-        public ActionResult Configure(int discountId, int? discountRequirementId, string variantIds)
+        public IActionResult Configure(int discountId, int? discountRequirementId, string variantIds)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageDiscounts))
                 return Content("Access denied");
@@ -120,12 +123,12 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
             if (discountRequirement != null)
             {
                 //update existing rule
-                _settingService.SetSetting(string.Format("DiscountRequirement.RestrictedProductVariantIds-{0}", discountRequirement.Id), variantIds);
+                _settingService.SetSetting($"DiscountRequirement.RestrictedProductVariantIds-{discountRequirement.Id}", variantIds);
             }
             else
             {
                 //save new rule
-                discountRequirement = new DiscountRequirement()
+                discountRequirement = new DiscountRequirement
                 {
                     DiscountRequirementRuleSystemName = "DiscountRequirement.PurchasedOneProduct"
                 };
@@ -133,21 +136,23 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
                 discount.DiscountRequirements.Add(discountRequirement);
                 _discountService.UpdateDiscount(discount);
                 
-                _settingService.SetSetting(string.Format("DiscountRequirement.RestrictedProductVariantIds-{0}", discountRequirement.Id), variantIds);
+                _settingService.SetSetting($"DiscountRequirement.RestrictedProductVariantIds-{discountRequirement.Id}", variantIds);
             }
 
-            return Json(new { Result = true, NewRequirementId = discountRequirement.Id }, JsonRequestBehavior.AllowGet);
+            return Json(new { Result = true, NewRequirementId = discountRequirement.Id });
         }
 
-        public ActionResult ProductAddPopup(string btnId, string productIdsInput)
+        public IActionResult ProductAddPopup(string btnId, string productIdsInput)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageProducts))
                 return Content("Access denied");
 
-            var model = new RequirementModel.AddProductModel();
-            //a vendor should have access only to his products
-            model.IsLoggedInAsVendor = _workContext.CurrentVendor != null;
-
+            var model = new RequirementModel.AddProductModel
+            {
+                //a vendor should have access only to his products
+                IsLoggedInAsVendor = _workContext.CurrentVendor != null
+            };
+           
             //categories
             model.AvailableCategories.Add(new SelectListItem { Text = _localizationService.GetResource("Admin.Common.All"), Value = "0" });
             var categories = _categoryService.GetAllCategories(showHidden: true);
@@ -182,7 +187,7 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
 
         [HttpPost]
         [AdminAntiForgery]
-        public ActionResult ProductAddPopupList(DataSourceRequest command, RequirementModel.AddProductModel model)
+        public IActionResult ProductAddPopupList(DataSourceRequest command, RequirementModel.AddProductModel model)
         {
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageProducts))
                 return ErrorForKendoGridJson("Access denied");
@@ -204,29 +209,30 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
                 pageSize: command.PageSize,
                 showHidden: true
                 );
-            var gridModel = new DataSourceResult();
-            gridModel.Data = products.Select(x => new RequirementModel.ProductModel
+            var gridModel = new DataSourceResult
             {
-                Id = x.Id,
-                Name = x.Name,
-                Published = x.Published
-            });
-            gridModel.Total = products.TotalCount;
+                Data = products.Select(x => new RequirementModel.ProductModel
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Published = x.Published
+                }),
+                Total = products.TotalCount
+            };
 
             return Json(gridModel);
         }
 
         [HttpPost]
-        [ValidateInput(false)]
         [AdminAntiForgery]
-        public ActionResult LoadProductFriendlyNames(string productIds)
+        public IActionResult LoadProductFriendlyNames(string productIds)
         {
             var result = "";
 
             if (!_permissionService.Authorize(StandardPermissionProvider.ManageProducts))
                 return Json(new { Text = result });
 
-            if (!String.IsNullOrWhiteSpace(productIds))
+            if (!string.IsNullOrWhiteSpace(productIds))
             {
                 var ids = new List<int>();
                 var idsArray = productIds
@@ -234,15 +240,14 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
                     .Select(x => x.Trim())
                     .ToList();
 
-                foreach (string str1 in idsArray)
+                foreach (var str1 in idsArray)
                 {
-                    int tmp1;
-                    if (int.TryParse(str1, out tmp1))
+                    if (int.TryParse(str1, out int tmp1))
                         ids.Add(tmp1);
                 }
 
                 var products = _productService.GetProductsByIds(ids.ToArray());
-                for (int i = 0; i <= products.Count - 1; i++)
+                for (var i = 0; i <= products.Count - 1; i++)
                 {
                     result += products[i].Name;
                     if (i != products.Count - 1)
@@ -252,7 +257,6 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct.Controllers
 
             return Json(new { Text = result });
         }
-
 
         #endregion
     }
