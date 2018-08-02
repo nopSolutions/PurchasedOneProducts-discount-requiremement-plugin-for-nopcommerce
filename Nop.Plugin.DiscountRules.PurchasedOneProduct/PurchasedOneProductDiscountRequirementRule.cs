@@ -17,6 +17,7 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
     {
         #region Fields
 
+        private readonly ILocalizationService _localizationService;
         private readonly ISettingService _settingService;
         private readonly IRepository<OrderItem> _orderItemRepository;
         private readonly IActionContextAccessor _actionContextAccessor;
@@ -26,11 +27,14 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
 
         #region Ctor
 
-        public PurchasedOneProductDiscountRequirementRule(ISettingService settingService,
+        public PurchasedOneProductDiscountRequirementRule(
+            ILocalizationService localizationService,
+            ISettingService settingService,
             IRepository<OrderItem> orderItemRepository,
             IActionContextAccessor actionContextAccessor,
             IUrlHelperFactory urlHelperFactory)
         {
+            this._localizationService = localizationService;
             this._settingService = settingService;
             this._orderItemRepository = orderItemRepository;
             this._actionContextAccessor = actionContextAccessor;
@@ -128,10 +132,10 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
         public override void Install()
         {
             //locales
-            this.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products", "Restricted products");
-            this.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Hint", "The comma-separated list of product identifiers (e.g. 77, 123, 156). You can find a product variant ID on its details page.");
-            this.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.AddNew", "Add product");
-            this.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Choose", "Choose");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products", "Restricted products");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Hint", "The comma-separated list of product identifiers (e.g. 77, 123, 156). You can find a product variant ID on its details page.");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.AddNew", "Add product");
+            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Choose", "Choose");
 
             base.Install();
         }
@@ -142,10 +146,10 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
         public override void Uninstall()
         {
             //locales
-            this.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products");
-            this.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Hint");
-            this.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.AddNew");
-            this.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Choose");
+            _localizationService.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products");
+            _localizationService.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Hint");
+            _localizationService.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.AddNew");
+            _localizationService.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Choose");
 
             base.Uninstall();
         }
