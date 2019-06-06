@@ -1,16 +1,17 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Routing;
+using Nop.Core;
 using Nop.Core.Data;
 using Nop.Core.Domain.Orders;
-using Nop.Core.Plugins;
 using Nop.Services.Configuration;
 using Nop.Services.Discounts;
 using Nop.Services.Localization;
-using Microsoft.AspNetCore.Mvc;
+using Nop.Services.Plugins;
 
 namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
 {
@@ -18,28 +19,30 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
     {
         #region Fields
 
-        private readonly ILocalizationService _localizationService;
-        private readonly ISettingService _settingService;
-        private readonly IRepository<OrderItem> _orderItemRepository;
         private readonly IActionContextAccessor _actionContextAccessor;
+        private readonly ILocalizationService _localizationService;
+        private readonly IRepository<OrderItem> _orderItemRepository;
+        private readonly ISettingService _settingService;
         private readonly IUrlHelperFactory _urlHelperFactory;
+        private readonly IWebHelper _webHelper;
 
         #endregion
 
         #region Ctor
 
-        public PurchasedOneProductDiscountRequirementRule(
+        public PurchasedOneProductDiscountRequirementRule(IActionContextAccessor actionContextAccessor,
             ILocalizationService localizationService,
-            ISettingService settingService,
             IRepository<OrderItem> orderItemRepository,
-            IActionContextAccessor actionContextAccessor,
-            IUrlHelperFactory urlHelperFactory)
+            ISettingService settingService,
+            IUrlHelperFactory urlHelperFactory,
+            IWebHelper webHelper)
         {
-            this._localizationService = localizationService;
-            this._settingService = settingService;
-            this._orderItemRepository = orderItemRepository;
-            this._actionContextAccessor = actionContextAccessor;
-            this._urlHelperFactory = urlHelperFactory;
+            _actionContextAccessor = actionContextAccessor;
+            _localizationService = localizationService;
+            _orderItemRepository = orderItemRepository;
+            _settingService = settingService;
+            _urlHelperFactory = urlHelperFactory;
+            _webHelper = webHelper;
         }
 
         #endregion
@@ -123,14 +126,9 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
         public string GetConfigurationUrl(int discountId, int? discountRequirementId)
         {
             var urlHelper = _urlHelperFactory.GetUrlHelper(_actionContextAccessor.ActionContext);
-            var url = new PathString(urlHelper.Action("Configure", "DiscountRulesPurchasedOneProduct",
-            new { discountId = discountId, discountRequirementId = discountRequirementId }));
 
-            //remove the application path from the generated URL if exists
-            var pathBase = _actionContextAccessor.ActionContext?.HttpContext?.Request?.PathBase ?? PathString.Empty;
-            url.StartsWithSegments(pathBase, out url);
-
-            return url.Value.TrimStart('/');
+            return urlHelper.Action("Configure", "DiscountRulesPurchasedOneProduct",
+            new { discountId = discountId, discountRequirementId = discountRequirementId }, _webHelper.CurrentRequestProtocol);
         }
 
         /// <summary>
