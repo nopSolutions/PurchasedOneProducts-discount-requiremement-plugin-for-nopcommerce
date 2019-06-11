@@ -6,8 +6,8 @@
     <Company>Nop Solutions, Ltd</Company>
     <Authors>Nop Solutions, Ltd</Authors>
     <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageProjectUrl>http://www.nopcommerce.com/</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/nopSolutions/nopCommerce</RepositoryUrl>
+    <PackageProjectUrl>http://www.nopcommerce.com/p/983/had-purchased-one-of-these-product-discount-requirement-rule.aspx</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/nopSolutions/PurchasedOneProducts-discount-requiremement-plugin-for-nopcommerce</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
     <OutputPath>..\..\Presentation\Nop.Web\Plugins\DiscountRules.PurchasedOneProduct</OutputPath>
     <OutDir>$(OutputPath)</OutDir>
@@ -22,6 +22,7 @@
     <None Remove="plugin.json" />
     <None Remove="Views\Configure.cshtml" />
     <None Remove="Views\ProductAddPopup.cshtml" />
+    <None Remove="Views\_ViewImport.cshtml" />
   </ItemGroup>
 
   <ItemGroup>
