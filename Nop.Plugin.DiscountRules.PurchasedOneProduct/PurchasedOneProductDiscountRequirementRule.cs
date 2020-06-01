@@ -5,11 +5,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Infrastructure;
 using Microsoft.AspNetCore.Mvc.Routing;
 using Nop.Core;
-using Nop.Core.Data;
 using Nop.Core.Domain.Orders;
 using Nop.Services.Configuration;
 using Nop.Services.Discounts;
 using Nop.Services.Localization;
+using Nop.Services.Orders;
 using Nop.Services.Plugins;
 
 namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
@@ -19,8 +19,10 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
         #region Fields
 
         private readonly IActionContextAccessor _actionContextAccessor;
+        private readonly IDiscountService _discountService;
         private readonly ILocalizationService _localizationService;
-        private readonly IRepository<OrderItem> _orderItemRepository;
+        private readonly IReturnRequestService _returnRequestService;
+        private readonly IOrderService _orderService;
         private readonly ISettingService _settingService;
         private readonly IUrlHelperFactory _urlHelperFactory;
         private readonly IWebHelper _webHelper;
@@ -30,15 +32,19 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
         #region Ctor
 
         public PurchasedOneProductDiscountRequirementRule(IActionContextAccessor actionContextAccessor,
+            IDiscountService discountService,
             ILocalizationService localizationService,
-            IRepository<OrderItem> orderItemRepository,
+            IReturnRequestService returnRequestService,
+            IOrderService orderService,
             ISettingService settingService,
             IUrlHelperFactory urlHelperFactory,
             IWebHelper webHelper)
         {
             _actionContextAccessor = actionContextAccessor;
+            _discountService = discountService;
             _localizationService = localizationService;
-            _orderItemRepository = orderItemRepository;
+            _returnRequestService = returnRequestService;
+            _orderService = orderService;
             _settingService = settingService;
             _urlHelperFactory = urlHelperFactory;
             _webHelper = webHelper;
@@ -61,7 +67,7 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
             //invalid by default
             var result = new DiscountRequirementValidationResult();
 
-            var restrictedProductVariantIdsStr = _settingService.GetSettingByKey<string>($"DiscountRequirement.RestrictedProductVariantIds-{request.DiscountRequirementId}");
+            var restrictedProductVariantIdsStr = _settingService.GetSettingByKey<string>(string.Format(DiscountRequirementDefaults.SettingsKey, request.DiscountRequirementId));
 
             if (string.IsNullOrWhiteSpace(restrictedProductVariantIdsStr))
                 return result;
@@ -88,30 +94,35 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
                 return result;
 
             var customerId = request.Customer.Id;
-            const int orderStatusId = (int)OrderStatus.Complete;
-            //purchased product
-            var purchasedProducts = _orderItemRepository.Table.Where(oi => oi.Order.CustomerId == customerId && !oi.Order.Deleted && oi.Order.OrderStatusId == orderStatusId).ToList();
 
-            var found = false;
+            //get available orders
+            var availableOrders = _orderService.SearchOrders(
+                customerId: customerId,
+                osIds: new List<int> { (int)OrderStatus.Complete });
 
-            foreach (var restrictedProductId in restrictedProductIds)
-            {
-                if (purchasedProducts.Any(purchasedProduct => restrictedProductId == purchasedProduct.ProductId))
+            //get all available purchased product ids
+            var purchasedProductIds = availableOrders
+                .SelectMany(order => _orderService.GetOrderItems(order.Id))
+                .Where(orderItem =>
                 {
-                    found = true;
-                }
+                    //exclude products from return requests
+                    var returnRequests = _returnRequestService
+                        .SearchReturnRequests(customerId: customerId, orderItemId: orderItem.Id)
+                        .Where(returnRequest => returnRequest.ReturnRequestStatus != ReturnRequestStatus.Cancelled &&
+                                                  returnRequest.ReturnRequestStatus != ReturnRequestStatus.RequestRejected &&
+                                                    returnRequest.ReturnRequestStatus != ReturnRequestStatus.ItemsRepaired);
+                    var returnedQuantity = 0;
+                    foreach (var returnRequest in returnRequests)
+                        returnedQuantity += returnRequest.Quantity;
 
-                if (found)
-                {
-                    break;
-                }
-            }
+                    return returnedQuantity < orderItem.Quantity;
+                })
+                .Select(orderItem => orderItem.ProductId)
+                .Distinct();
 
-            if (found)
-            {
-                result.IsValid = true;
-                return result;
-            }
+            //check if any purchased products are match the restricted products
+            result.IsValid = restrictedProductIds
+                .Any(productId => purchasedProductIds.Any(purchasedProductId => purchasedProductId == productId));
 
             return result;
         }
@@ -136,10 +147,16 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
         public override void Install()
         {
             //locales
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products", "Restricted products");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Hint", "The comma-separated list of product identifiers (e.g. 77, 123, 156). You can find a product variant ID on its details page.");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.AddNew", "Add product");
-            _localizationService.AddOrUpdatePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Choose", "Choose");
+            _localizationService.AddPluginLocaleResource(new Dictionary<string, string>
+            {
+                ["Plugins.DiscountRules.PurchasedOneProduct.Fields.Products"] = "Restricted products",
+                ["Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Hint"] = "The comma-separated list of product identifiers (e.g. 77, 123, 156). You can find a product variant ID on its details page.",
+                ["Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.AddNew"] = "Add product",
+                ["Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Choose"] = "Choose",
+                ["Plugins.DiscountRules.PurchasedOneProduct.Fields.ProductIds.Required"] = "Products are required",
+                ["Plugins.DiscountRules.PurchasedOneProduct.Fields.DiscountId.Required"] = "Discount is required",
+                ["Plugins.DiscountRules.PurchasedOneProduct.Fields.ProductIds.InvalidFormat"] = "Invalid format of the products selection. Format should be comma-separated list of product identifiers (e.g. 77, 123, 156). You can find a product ID on its details page."
+            });
 
             base.Install();
         }
@@ -149,11 +166,16 @@ namespace Nop.Plugin.DiscountRules.PurchasedOneProduct
         /// </summary>
         public override void Uninstall()
         {
+            //discount requirements
+            var discountRequirements = _discountService.GetAllDiscountRequirements()
+                .Where(discountRequirement => discountRequirement.DiscountRequirementRuleSystemName == DiscountRequirementDefaults.SystemName);
+            foreach (var discountRequirement in discountRequirements)
+            {
+                _discountService.DeleteDiscountRequirement(discountRequirement, false);
+            }
+
             //locales
-            _localizationService.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products");
-            _localizationService.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Hint");
-            _localizationService.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.AddNew");
-            _localizationService.DeletePluginLocaleResource("Plugins.DiscountRules.PurchasedOneProduct.Fields.Products.Choose");
+            _localizationService.DeletePluginLocaleResources("Plugins.DiscountRules.PurchasedOneProduct");
 
             base.Uninstall();
         }
