@@ -6,7 +6,7 @@
     <Company>Nop Solutions, Ltd</Company>
     <Authors>Nop Solutions, Ltd</Authors>
     <PackageLicenseUrl></PackageLicenseUrl>
-    <PackageProjectUrl>http://www.nopcommerce.com/p/983/had-purchased-one-of-these-product-discount-requirement-rule.aspx</PackageProjectUrl>
+    <PackageProjectUrl>https://www.nopcommerce.com/had-purchased-one-of-these-product-discount-rule</PackageProjectUrl>
     <RepositoryUrl>https://github.com/nopSolutions/PurchasedOneProducts-discount-requiremement-plugin-for-nopcommerce</RepositoryUrl>
     <RepositoryType>Git</RepositoryType>
     <OutputPath>..\..\Presentation\Nop.Web\Plugins\DiscountRules.PurchasedOneProduct</OutputPath>
