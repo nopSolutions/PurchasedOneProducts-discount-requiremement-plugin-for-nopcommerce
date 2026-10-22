@@ -1,50 +1,46 @@
-﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Infrastructure;
-using Microsoft.AspNetCore.Mvc.Routing;
-using Nop.Core;
-using Nop.Core.Domain.Orders;
+﻿using Nop.Core.Domain.Orders;
 using Nop.Services.Configuration;
 using Nop.Services.Discounts;
+using Nop.Services.Helpers;
 using Nop.Services.Localization;
 using Nop.Services.Orders;
 using Nop.Services.Plugins;
+using Nop.Web.Framework.Mvc.Routing;
 
 namespace Nop.Plugin.DiscountRules.PurchasedOneProduct;
 
-public partial class PurchasedOneProductDiscountRequirementRule : BasePlugin, IDiscountRequirementRule
+public class PurchasedOneProductDiscountRequirementRule : BasePlugin, IDiscountRequirementRule
 {
     #region Fields
 
-    private const char _idsSeparator = ',';
-    private readonly IActionContextAccessor _actionContextAccessor;
+    private const char IDS_SEPARATOR = ',';
     private readonly IDiscountService _discountService;
     private readonly ILocalizationService _localizationService;
-    private readonly IReturnRequestService _returnRequestService;
+    private readonly INopUrlHelper _nopUrlHelper;
     private readonly IOrderService _orderService;
+    private readonly IReturnRequestService _returnRequestService;
     private readonly ISettingService _settingService;
-    private readonly IUrlHelperFactory _urlHelperFactory;
     private readonly IWebHelper _webHelper;
 
     #endregion
 
     #region Ctor
 
-    public PurchasedOneProductDiscountRequirementRule(IActionContextAccessor actionContextAccessor,
+    public PurchasedOneProductDiscountRequirementRule(
         IDiscountService discountService,
         ILocalizationService localizationService,
-        IReturnRequestService returnRequestService,
+        INopUrlHelper nopUrlHelper,
         IOrderService orderService,
+        IReturnRequestService returnRequestService,
         ISettingService settingService,
-        IUrlHelperFactory urlHelperFactory,
         IWebHelper webHelper)
     {
-        _actionContextAccessor = actionContextAccessor;
         _discountService = discountService;
         _localizationService = localizationService;
-        _returnRequestService = returnRequestService;
+        _nopUrlHelper = nopUrlHelper;
         _orderService = orderService;
+        _returnRequestService = returnRequestService;
         _settingService = settingService;
-        _urlHelperFactory = urlHelperFactory;
         _webHelper = webHelper;
     }
 
@@ -55,7 +51,7 @@ public partial class PurchasedOneProductDiscountRequirementRule : BasePlugin, ID
     /// <summary>
     /// Check discount requirement
     /// </summary>
-    /// <param name="request">Object that contains all information required to check the requirement (Current customer, discount, etc)</param>
+    /// <param name="request">Object that contains all information required to check the requirement (Current customer, discount, etc.)</param>
     /// <returns>
     /// A task that represents the asynchronous operation
     /// The task result contains the result
@@ -80,7 +76,7 @@ public partial class PurchasedOneProductDiscountRequirementRule : BasePlugin, ID
         try
         {
             restrictedProductIds = restrictedProductVariantIdsStr
-                .Split(_idsSeparator, StringSplitOptions.RemoveEmptyEntries)
+                .Split(IDS_SEPARATOR, StringSplitOptions.RemoveEmptyEntries)
                 .Select(x => Convert.ToInt32(x))
                 .ToList();
         }
@@ -98,23 +94,26 @@ public partial class PurchasedOneProductDiscountRequirementRule : BasePlugin, ID
         //get available orders
         var availableOrders = await _orderService.SearchOrdersAsync(
             customerId: customerId,
-            osIds: new List<int> { (int)OrderStatus.Complete });
+            osIds: [(int)OrderStatus.Complete]);
 
         //get all available purchased product ids
         var purchasedProductIds = await availableOrders
             .SelectManyAwait(async order => await _orderService.GetOrderItemsAsync(order.Id))
-            .WhereAwait(async orderItem =>
+            .Where(async (orderItem, _) =>
             {
                 //exclude products from return requests
-                var returnRequests = (await _returnRequestService.SearchReturnRequestsAsync(customerId: customerId, orderItemId: orderItem.Id))
+                var returnRequests =
+                    (await _returnRequestService.SearchReturnRequestsAsync(customerId: customerId,
+                        orderItemId: orderItem.Id))
                     .Where(returnRequest => returnRequest.ReturnRequestStatus != ReturnRequestStatus.Cancelled &&
-                                              returnRequest.ReturnRequestStatus != ReturnRequestStatus.RequestRejected &&
-                                                returnRequest.ReturnRequestStatus != ReturnRequestStatus.ItemsRepaired);
+                                            returnRequest.ReturnRequestStatus != ReturnRequestStatus.RequestRejected &&
+                                            returnRequest.ReturnRequestStatus != ReturnRequestStatus.ItemsRepaired);
                 var returnedQuantity = 0;
                 foreach (var returnRequest in returnRequests)
                     returnedQuantity += returnRequest.Quantity;
 
                 return returnedQuantity < orderItem.Quantity;
+
             })
             .Select(orderItem => orderItem.ProductId)
             .Distinct()
@@ -135,10 +134,8 @@ public partial class PurchasedOneProductDiscountRequirementRule : BasePlugin, ID
     /// <returns>URL</returns>
     public string GetConfigurationUrl(int discountId, int? discountRequirementId)
     {
-        var urlHelper = _urlHelperFactory.GetUrlHelper(_actionContextAccessor.ActionContext);
-
-        return urlHelper.Action("Configure", "DiscountRulesPurchasedOneProduct",
-        new { discountId, discountRequirementId }, _webHelper.GetCurrentRequestProtocol());
+        return _nopUrlHelper.RouteUrl(DiscountRequirementDefaults.ConfigurationRouteName,
+            new { discountId, discountRequirementId }, _webHelper.GetCurrentRequestProtocol());
     }
 
     /// <summary>
